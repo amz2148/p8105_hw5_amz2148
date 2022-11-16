@@ -10,6 +10,7 @@ Data Science: Homework 5
 ```{r load_libraries}
 library(tidyverse) #loads tidyverse package
 library(purrr) #loads tidyverse package
+set.seed(1)
 ```
 
 ```{r setup}
@@ -72,11 +73,14 @@ baltimore_test =
           alternative = c("two.sided", "less", "greater"), 
           conf.level = 0.95, correct = TRUE) %>% 
   broom::tidy() %>% 
-  janitor::clean_names() %>% 
+  janitor::clean_names()
+
+baltimore_table = 
+  baltimore_test %>% 
   select(estimate, starts_with("conf")) %>% 
   knitr::kable(digits = 4) #creates table
 
-baltimore_test
+baltimore_table
 ```
 
 Now run prop.test for each of the cities in your dataset, and extract both the proportion of unsolved homicides and the confidence interval for each. Do this within a “tidy” pipeline, making use of purrr::map, purrr::map2, list columns and unnest as necessary to create a tidy dataframe with estimated proportions and CIs for each city.
@@ -120,3 +124,58 @@ ggplot(all_cities, aes( x = city_state, y = estimate)) +
       caption = "Data from Washington Post.")
 ```
 
+
+# Problem 3
+
+In this problem, we will conduct a simulation to explore power in a one-sample t-test. First, we set the following design elements:
+
+* Fix n=30
+* Fix σ=5
+* Set μ=0. Generate 5000 datasets from the model x∼Normal[μ,σ]
+
+For each dataset, we save mu hat and the p-value arising from a test of H: mu = 0 and alpha = 0.05. To obtain the estimate and p-value, we use `broom::tidy` to clean the output of `t.test`.
+
+```{r simulation}
+sim_t_test = function(sample_size=30, mu, sigma = 5){
+
+sample = rnorm(n = sample_size, mean = 0, sd = sigma)
+
+test_results = t.test(sample)
+
+test_results %>% 
+  broom::tidy()
+}
+
+sim_results_df = 
+  expand_grid(
+    sample_size = c(30),
+    iter = 1:100
+  ) %>% 
+  mutate(
+    estimate_df = map(sample_size, sim_t_test)
+  ) %>% 
+  unnest(estimate_df)
+```
+
+
+```{r iteration}
+sim_t_test = function(mean, n = 30, sd = 5){
+
+sample = rnorm(mean, n = 30, sd = 5)
+
+test_results = t.test(sample)
+
+test_results %>% 
+  broom::tidy()
+}
+
+sim_results_df = 
+  expand_grid(
+    true_mean = c(1, 2, 3, 4, 5, 6),
+    iter = 1:100
+  ) %>% 
+  mutate(
+    estimate_df = map(true_mean, sim_t_test)
+  ) %>% 
+  unnest(estimate_df)
+```
