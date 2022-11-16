@@ -9,6 +9,7 @@ Data Science: Homework 5
 
 ```{r load_libraries}
 library(tidyverse) #loads tidyverse package
+library(purrr) #loads tidyverse package
 ```
 
 ```{r setup}
@@ -27,20 +28,73 @@ theme_set(theme_minimal() + theme(legend.position = "bottom")) #sets default fig
 
 # Problem 2
 
+First, we load the CSV file of homicide data from Washington Past, clean the variable names, and change unknown values to NA for consistency (since some but not all variables already have missing/unknown values already coded as NA). 
+
 ```{r load_homicides}
 homicides = 
   read_csv("data/homicide_data.csv") %>% #loads csv file
-  janitor::clean_names() #cleans variable names
+  janitor::clean_names() %>% #cleans variable names
+  gdata::unknownToNA("Unknown", warning = FALSE) #changes all "unknown" values to "NA"
 ```
 
-In the resulting dataset, there are ``r nrow(homicides)`` rows (observations) and ``r ncol(homicides)`` columns (variables). The variables' names are ``r names(homicides)``.
+In the resulting dataset, there are ``r nrow(homicides)`` rows (observations) and ``r ncol(homicides)`` columns (variables). The variables' names are ``r names(homicides)``. We can see `uid` provides the victim's ID (with a prefix for the city proceeding a number), `reported_date` gives the date on which the homicide was reported (YYYYMMDD), `victim_last` gives the victim's last name, `victim_first` gives the victim's first name, `victim_race` gives the victim's race (Asian, Black, Hispanic, Other, White), `victim_age` gives the victim's age in years, `victim_sex` gives the victim's sex (male, female), `city`, `state`, `lat` (latitude), and `long` (longitude) give the location of the homicide,  and `disposition` gives the outcome of the case (closed by arrest, closed without arrest, open/no arrest).
 
+Next, we create a city_state variable (e.g. “Baltimore, MD”) and then summarize within cities to obtain the total number of homicides and the number of unsolved homicides (those for which the disposition is “Closed without arrest” or “Open/No arrest”). The table showing this data is outputted below the associated code.
 
-Describe the raw data. Create a city_state variable (e.g. “Baltimore, MD”) and then summarize within cities to obtain the total number of homicides and the number of unsolved homicides (those for which the disposition is “Closed without arrest” or “Open/No arrest”).
+```{r citystate}
+homicides = 
+  homicides %>% 
+  mutate(state = replace(state, state == "AL", "OK")) %>% 
+  mutate(state = replace(state, state == "wI", "WI")) %>% 
+  mutate(city_state = paste(city, state, sep = ", ")) %>% #creates city_state variable
+  group_by(city_state) %>% #groups by city_state
+  summarize(n_unsolved = sum(disposition == 'Closed without arrest' | disposition == 'Open/No arrest'), n_total = n()) #creates new variables for total homicides and total unsolved homicides
 
-For the city of Baltimore, MD, use the prop.test function to estimate the proportion of homicides that are unsolved; save the output of prop.test as an R object, apply the broom::tidy to this object and pull the estimated proportion and confidence intervals from the resulting tidy dataframe.
+homicides_table = 
+  homicides %>% 
+  knitr::kable(digits = 4) #creates table
+
+homicides_table #outputs table
+```
+
+For the city of Baltimore, MD, we use the `prop.test` function to estimate the proportion of homicides that are unsolved; save the output of `prop.test` as an R object, apply the `broom::tidy` to this object and pull the estimated proportion and confidence intervals from the resulting tidy dataframe.
+
+```{r baltimore}
+baltimore_md = 
+  homicides %>% 
+  filter(city_state == "Baltimore, MD")
+
+x = baltimore_md %>% pull(n_unsolved)
+n = baltimore_md %>% pull(n_total)
+
+baltimore_test = 
+  prop.test(x, n, p = NULL, 
+          alternative = c("two.sided", "less", "greater"), 
+          conf.level = 0.95, correct = TRUE) %>% 
+  broom::tidy() %>% 
+  janitor::clean_names() %>% 
+  select(estimate, starts_with("conf")) %>% 
+  knitr::kable(digits = 4) #creates table
+
+baltimore_test
+```
+
 
 Now run prop.test for each of the cities in your dataset, and extract both the proportion of unsolved homicides and the confidence interval for each. Do this within a “tidy” pipeline, making use of purrr::map, purrr::map2, list columns and unnest as necessary to create a tidy dataframe with estimated proportions and CIs for each city.
+
+```{r all_cities}
+all_cities = 
+  homicides %>%
+  mutate(test = map2(n_unsolved, n_total, ~ prop.test(.x, .y, conf.level=0.95) %>% 
+  broom::tidy())) %>% 
+  unnest(test) %>% 
+  janitor::clean_names() %>% 
+  select(city_state, estimate, conf_low, conf_high) %>% 
+  knitr::kable(digits = 4) #creates table
+
+all_cities
+```
+
 
 Create a plot that shows the estimates and CIs for each city – check out geom_errorbar for a way to add error bars based on the upper and lower limits. Organize cities according to the proportion of unsolved homicides.
 
