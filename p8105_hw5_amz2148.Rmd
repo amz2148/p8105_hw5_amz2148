@@ -15,7 +15,7 @@ library(purrr) #loads tidyverse package
 ```{r setup}
 knitr::opts_chunk$set(echo = TRUE) #shows all code chunks
 knitr::opts_chunk$set(
-  fig.width = 7,
+  fig.width = 12,
   fig.asp = .6,
   out.width = "100%") #sets figure dimensions
 
@@ -79,7 +79,6 @@ baltimore_test =
 baltimore_test
 ```
 
-
 Now run prop.test for each of the cities in your dataset, and extract both the proportion of unsolved homicides and the confidence interval for each. Do this within a “tidy” pipeline, making use of purrr::map, purrr::map2, list columns and unnest as necessary to create a tidy dataframe with estimated proportions and CIs for each city.
 
 ```{r all_cities}
@@ -90,11 +89,34 @@ all_cities =
   unnest(test) %>% 
   janitor::clean_names() %>% 
   select(city_state, estimate, conf_low, conf_high) %>% 
+  mutate(city_state = as.factor(city_state))
+
+all_cities_table = 
+  all_cities %>%
   knitr::kable(digits = 4) #creates table
 
-all_cities
+all_cities_table
 ```
 
+Finally, we create a plot that shows the estimates and CIs for each city, adding error bars based on the upper and lower limits. We organize cities according to the proportion of unsolved homicides.
 
-Create a plot that shows the estimates and CIs for each city – check out geom_errorbar for a way to add error bars based on the upper and lower limits. Organize cities according to the proportion of unsolved homicides.
+```{r cities_plot}
+all_cities = 
+  all_cities %>%
+  mutate(city_state = reorder(city_state, -estimate))
+
+ggplot(all_cities, aes( x = city_state, y = estimate)) + 
+  geom_bar(stat = 'identity', alpha = 0.7, fill = "#d98fcc") + 
+  geom_errorbar(aes(ymin = conf_low, ymax = conf_high), alpha = 0.7) + 
+  theme(plot.title = element_text(size = 20, face = "bold")) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1, size = 14)) + 
+  theme(axis.text.y = element_text(size = 14)) + 
+  theme(axis.title = element_text(size = 14, face = "bold")) + 
+  theme(plot.caption = element_text(size = 12)) + 
+  labs(
+      title = "Proportion of Unsolved Homicides in U.S. Cities with 95% Confidence Intervals",
+      x = "City, State",
+      y = "Proportion of Unsolved Homicides",
+      caption = "Data from Washington Post.")
+```
 
