@@ -205,6 +205,9 @@ iter_results_plot =
   ggplot(aes(x = true_mean, y = prop_reject)) + 
   geom_point(alpha = .5, color = "black") +
   geom_smooth(se = FALSE, color = "#d98fcc") + 
+  theme(plot.title = element_text(size = 20, face = "bold")) +
+  theme(axis.text = element_text(size = 14)) + 
+  theme(axis.title = element_text(size = 14, face = "bold")) + 
   labs(
       title = "Power vs. Effect Size",
       x = "True Mean ('Effect Size')",
@@ -216,7 +219,42 @@ iter_results_plot
 * Finally, we make 2 plots: one plot showing the average estimate of mu-hat on the y axis and the true value of mu on the x axis, and a second plot with the average estimate of mu-hat  only in samples for which the null was rejected on the y axis and the true value of mu on the x axis. 
 
 ```{r graph2}
+mu_plot = 
+  iter_results_df %>% 
+  group_by(true_mean) %>% 
+  summarize(average_mu_estimate = (mean(estimate))) %>% 
+  ggplot(aes(x = true_mean, y = average_mu_estimate)) + 
+  geom_point(alpha = .5, color = "black") +
+  geom_smooth(se = FALSE, color = "#d98fcc") + 
+  ylim(1, 6) +
+  theme(plot.title = element_text(size = 14, face = "bold")) +
+  theme(axis.text = element_text(size = 12)) + 
+  theme(axis.title = element_text(size = 12, face = "bold")) + 
+  labs(
+      title = "Average Mean Estimate vs. True Mean",
+      x = "True Mean",
+      y = "Average Esimated Mean")
 
+mu_plot
+
+mu_rejected_plot = 
+  iter_results_df %>% 
+  filter(p_value <= 0.05) %>% 
+  group_by(true_mean) %>% 
+  summarize(average_mu_estimate = (mean(estimate))) %>% 
+  ggplot(aes(x = true_mean, y = average_mu_estimate)) + 
+  geom_point(alpha = .5, color = "black") +
+  geom_smooth(se = FALSE, color = "#d98fcc") + 
+  ylim(1, 6) +
+  theme(plot.title = element_text(size = 14, face = "bold")) +
+  theme(axis.text = element_text(size = 12)) + 
+  theme(axis.title = element_text(size = 12, face = "bold")) + 
+  labs(
+      title = "Average Mean Estimate vs. True Mean for Null-Rejected Samples",
+      x = "True Mean",
+      y = "Average Esimated Mean (Null-Rejected Samples Only)")
+
+mu_plot + mu_rejected_plot
 ```
 
 
